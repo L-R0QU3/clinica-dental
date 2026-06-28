@@ -1,6 +1,18 @@
 import { google } from 'googleapis';
 import emailjs from '@emailjs/browser';
 
+// Función para limpiar la clave privada
+function cleanPrivateKey(key) {
+  if (!key) return '';
+  // Reemplazar \n literales por saltos de línea reales
+  let cleaned = key.replace(/\\n/g, '\n');
+  // Eliminar comillas al inicio y final si existen
+  cleaned = cleaned.replace(/^"|"$/g, '');
+  // Eliminar espacios en blanco al inicio y final
+  cleaned = cleaned.trim();
+  return cleaned;
+}
+
 export default async function handler(req, res) {
   // Solo aceptar solicitudes POST
   if (req.method !== 'POST') {
@@ -15,11 +27,23 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'Faltan datos obligatorios' });
     }
 
+    // Log para depuración (se ve en Vercel Functions)
+    console.log('📝 Datos recibidos:', { nombre, email, fecha, hora });
+    console.log('📅 GOOGLE_CALENDAR_ID:', process.env.GOOGLE_CALENDAR_ID);
+
     // ─── 1. AUTENTICAR CON GOOGLE CALENDAR ──────────────────────────────
+    const privateKey = cleanPrivateKey(process.env.GOOGLE_PRIVATE_KEY);
+    const clientEmail = process.env.GOOGLE_CLIENT_EMAIL;
+    const calendarId = process.env.GOOGLE_CALENDAR_ID || 'primary';
+
+    console.log('🔑 GOOGLE_CLIENT_EMAIL:', clientEmail);
+    console.log('🔑 GOOGLE_CALENDAR_ID:', calendarId);
+    console.log('🔑 GOOGLE_PRIVATE_KEY (primeros 50 chars):', privateKey.substring(0, 50) + '...');
+
     const auth = new google.auth.GoogleAuth({
       credentials: {
-        client_email: process.env.GOOGLE_CLIENT_EMAIL,
-        private_key: process.env.GOOGLE_PRIVATE_KEY.replace(/\\n/g, '\n'),
+        client_email: clientEmail,
+        private_key: privateKey,
       },
       scopes: ['https://www.googleapis.com/auth/calendar'],
     });
@@ -28,7 +52,7 @@ export default async function handler(req, res) {
 
     // ─── 2. CREAR EL EVENTO EN GOOGLE CALENDAR ──────────────────────────
     const startDateTime = `${fecha}T${hora}:00-04:00`; // Zona horaria Chile
-    const endDateTime = new Date(new Date(startDateTime).getTime() + 60 * 60 * 1000).toISOString(); // 1 hora después
+    const endDateTime = new Date(new Date(startDateTime).getTime() + 60 * 60 * 1000).toISOString();
 
     const event = {
       summary: `Consulta con ${nombre}`,
@@ -58,10 +82,12 @@ export default async function handler(req, res) {
     };
 
     const response = await calendar.events.insert({
-      calendarId: process.env.GOOGLE_CALENDAR_ID || 'primary',
+      calendarId: calendarId,
       resource: event,
       sendUpdates: 'all',
     });
+
+    console.log('✅ Evento creado en Google Calendar:', response.data.id);
 
     // ─── 3. ENVIAR CORREO DE CONFIRMACIÓN CON EMAILJS ──────────────────
     const fechaFormateada = new Date(startDateTime).toLocaleString('es-CL', {
@@ -85,6 +111,8 @@ export default async function handler(req, res) {
       },
       process.env.EMAILJS_PUBLIC_KEY
     );
+
+    console.log('📧 Correo de confirmación enviado a:', email);
 
     // ─── 4. RESPONDER AL FRONTEND ───────────────────────────────────────
     res.status(200).json({
