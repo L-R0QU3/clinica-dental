@@ -46,11 +46,11 @@ export default async function handler(req, res) {
 
     // ─── AUTENTICAR CON GOOGLE CALENDAR ──────────────────────────────────
     const auth = new google.auth.GoogleAuth({
-      credentials: {
-        client_email: process.env.GOOGLE_CLIENT_EMAIL,
-        private_key: privateKey,
-      },
-      scopes: ['https://www.googleapis.com/auth/calendar'],
+  credentials: {
+    client_email: process.env.GOOGLE_CLIENT_EMAIL,
+    private_key: process.env.GOOGLE_PRIVATE_KEY.replace(/\\n/g, '\n').replace(/^"|"$/g, ''),
+  },
+  scopes: ['https://www.googleapis.com/auth/calendar'],
     });
 
     const calendar = google.calendar({ version: 'v3', auth });
