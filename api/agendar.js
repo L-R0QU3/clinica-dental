@@ -1,20 +1,8 @@
 import { google } from 'googleapis';
 import emailjs from '@emailjs/browser';
 
-// Función para limpiar la clave privada
-function cleanPrivateKey(key) {
-  if (!key) return '';
-  // Reemplazar \n literales por saltos de línea reales
-  let cleaned = key.replace(/\\n/g, '\n');
-  // Eliminar comillas al inicio y final si existen
-  cleaned = cleaned.replace(/^"|"$/g, '');
-  // Eliminar espacios en blanco al inicio y final
-  cleaned = cleaned.trim();
-  return cleaned;
-}
-
 export default async function handler(req, res) {
-  // Solo aceptar solicitudes POST
+  // Solo aceptar POST
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Método no permitido' });
   }
@@ -22,27 +10,44 @@ export default async function handler(req, res) {
   try {
     const { nombre, email, telefono, fecha, hora, especialidad, mensaje } = req.body;
 
-    // Validar campos obligatorios
+    // Validación básica
     if (!nombre || !email || !fecha || !hora) {
       return res.status(400).json({ error: 'Faltan datos obligatorios' });
     }
 
-    // Log para depuración (se ve en Vercel Functions)
-    console.log('📝 Datos recibidos:', { nombre, email, fecha, hora });
-    console.log('📅 GOOGLE_CALENDAR_ID:', process.env.GOOGLE_CALENDAR_ID);
+    console.log('📝 Procesando solicitud para:', nombre);
+    console.log('📅 Fecha:', fecha, 'Hora:', hora);
 
-    // ─── 1. AUTENTICAR CON GOOGLE CALENDAR ──────────────────────────────
-    const privateKey = cleanPrivateKey(process.env.GOOGLE_PRIVATE_KEY);
-    const clientEmail = process.env.GOOGLE_CLIENT_EMAIL;
-    const calendarId = process.env.GOOGLE_CALENDAR_ID || 'primary';
+    // ─── PROCESAR CLAVE PRIVADA ──────────────────────────────────────────
+    // 🔑 Manejar diferentes formatos de la clave privada
+    let privateKey = process.env.GOOGLE_PRIVATE_KEY;
+    
+    // Si la clave viene con comillas dobles, quitarlas
+    if (privateKey.startsWith('"') && privateKey.endsWith('"')) {
+      privateKey = privateKey.slice(1, -1);
+    }
+    
+    // Reemplazar \n literales por saltos de línea reales
+    // Primero intentamos con la forma más común
+    privateKey = privateKey.replace(/\\n/g, '\n');
+    
+    // Si la clave tiene caracteres de escape adicionales, intentar con una limpieza más agresiva
+    if (!privateKey.includes('-----BEGIN PRIVATE KEY-----')) {
+      // Si no contiene el marcador, es porque no se procesaron bien los saltos de línea
+      // Intentamos con otra estrategia: split por espacios y unir con saltos de línea
+      privateKey = process.env.GOOGLE_PRIVATE_KEY
+        .replace(/"/g, '')
+        .replace(/\\n/g, '\n')
+        .replace(/\\/g, '');
+    }
 
-    console.log('🔑 GOOGLE_CLIENT_EMAIL:', clientEmail);
-    console.log('🔑 GOOGLE_CALENDAR_ID:', calendarId);
-    console.log('🔑 GOOGLE_PRIVATE_KEY (primeros 50 chars):', privateKey.substring(0, 50) + '...');
+    console.log('🔑 Clave privada procesada (primeros 50 caracteres):', privateKey.substring(0, 50) + '...');
+    console.log('📧 GOOGLE_CLIENT_EMAIL:', process.env.GOOGLE_CLIENT_EMAIL);
 
+    // ─── AUTENTICAR CON GOOGLE CALENDAR ──────────────────────────────────
     const auth = new google.auth.GoogleAuth({
       credentials: {
-        client_email: clientEmail,
+        client_email: process.env.GOOGLE_CLIENT_EMAIL,
         private_key: privateKey,
       },
       scopes: ['https://www.googleapis.com/auth/calendar'],
@@ -50,8 +55,8 @@ export default async function handler(req, res) {
 
     const calendar = google.calendar({ version: 'v3', auth });
 
-    // ─── 2. CREAR EL EVENTO EN GOOGLE CALENDAR ──────────────────────────
-    const startDateTime = `${fecha}T${hora}:00-04:00`; // Zona horaria Chile
+    // ─── CREAR EVENTO EN GOOGLE CALENDAR ─────────────────────────────────
+    const startDateTime = `${fecha}T${hora}:00-04:00`;
     const endDateTime = new Date(new Date(startDateTime).getTime() + 60 * 60 * 1000).toISOString();
 
     const event = {
@@ -81,15 +86,16 @@ export default async function handler(req, res) {
       },
     };
 
+    console.log('📤 Creando evento en Google Calendar...');
     const response = await calendar.events.insert({
-      calendarId: calendarId,
+      calendarId: process.env.GOOGLE_CALENDAR_ID || 'primary',
       resource: event,
       sendUpdates: 'all',
     });
 
-    console.log('✅ Evento creado en Google Calendar:', response.data.id);
+    console.log('✅ Evento creado con ID:', response.data.id);
 
-    // ─── 3. ENVIAR CORREO DE CONFIRMACIÓN CON EMAILJS ──────────────────
+    // ─── ENVIAR CORREO DE CONFIRMACIÓN ──────────────────────────────────
     const fechaFormateada = new Date(startDateTime).toLocaleString('es-CL', {
       weekday: 'long',
       day: 'numeric',
@@ -99,6 +105,7 @@ export default async function handler(req, res) {
       minute: '2-digit',
     });
 
+    console.log('📧 Enviando correo a:', email);
     await emailjs.send(
       process.env.EMAILJS_SERVICE_ID,
       process.env.EMAILJS_TEMPLATE_AGENDAR,
@@ -112,16 +119,16 @@ export default async function handler(req, res) {
       process.env.EMAILJS_PUBLIC_KEY
     );
 
-    console.log('📧 Correo de confirmación enviado a:', email);
+    console.log('✅ Correo enviado exitosamente');
 
-    // ─── 4. RESPONDER AL FRONTEND ───────────────────────────────────────
     res.status(200).json({
       success: true,
       eventId: response.data.id,
       message: '¡Cita agendada exitosamente!',
     });
   } catch (error) {
-    console.error('Error en el backend:', error);
+    console.error('❌ Error en el backend:', error);
+    console.error('Stack:', error.stack);
     res.status(500).json({ error: 'Error al agendar la cita. Intenta más tarde.' });
   }
 }
