@@ -1,0 +1,8 @@
+export const FAQS = [
+  { q: "¿Cuánto tiempo dura la redermalización de ojeras?", a: "Los resultados son visibles a los 15 días y tienen duración de 8 a 12 meses. Se recomienda mantención anual para optimizar los resultados según el tipo de piel y estilo de vida del paciente." },
+  { q: "¿Qué cuidados debo tener post-bótox?", a: "Las primeras 24 horas: evitar presionar o frotar la zona. No realice ejercicio físico intenso ni exposición a altas temperaturas. Mantenga postura erguida mínimo 4 horas post-aplicación." },
+  { q: "¿El ácido hialurónico en labios se ve natural?", a: "Con nuestra técnica conservadora, el objetivo siempre es respetar las proporciones naturales del rostro. El resultado debe verse como 'la mejor versión de sus propios labios'." },
+  { q: "¿A partir de qué edad se puede iniciar ortodoncia?", a: "La evaluación temprana desde los 7-8 años permite detectar alteraciones del desarrollo. Sin embargo, la ortodoncia es efectiva a cualquier edad con la planificación adecuada." },
+  { q: "¿Con qué frecuencia se recomienda la masoterapia capilar?", a: "Para resultados óptimos: una sesión semanal el primer mes, luego mensual como mantención. Se puede complementar con tratamientos tópicos según la condición capilar." },
+  { q: "¿Cuánto dura el tratamiento de ortodoncia?", a: "Depende de la complejidad de cada caso: desde 12 meses para casos simples hasta 30 meses para tratamientos complejos. En la evaluación inicial te daremos un estimado personalizado." },
+];

@@ -1,0 +1,22 @@
+backend:
+  name: test-repo
+
+media_folder: "public/images/cases"
+public_folder: "/images/cases"
+
+collections:
+  - name: "cases"
+    label: "Casos Clínicos"
+    folder: "content/cases"
+    create: true
+    slug: "{{slug}}"
+    fields:
+      - { label: "ID", name: "id", widget: "number" }
+      - { label: "Título", name: "title", widget: "string" }
+      - { label: "Categoría", name: "category", widget: "select", options: ["Ortodoncia", "Armonización Facial", "Innovador", "Bienestar"] }
+      - { label: "Fecha", name: "date", widget: "datetime", date_format: "MMMM YYYY", format: "MMMM YYYY" }
+      - { label: "Descripción breve", name: "description", widget: "text" }
+      - { label: "Etiquetas", name: "tags", widget: "list", default: [] }
+      - { label: "Imagen Antes", name: "before", widget: "image" }
+      - { label: "Imagen Después", name: "after", widget: "image" }
+      - { label: "Texto completo", name: "body", widget: "markdown" }

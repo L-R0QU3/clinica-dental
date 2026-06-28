@@ -1,0 +1,32 @@
+export const HERO_SLIDES = [
+  {
+    tag: "Ortodoncia Especializada",
+    title: "Transforma Tu Sonrisa con Precisión Clínica",
+    sub: "Diagnóstico integral y planes personalizados que restauran el equilibrio funcional y estético de tu mordida.",
+    cta1: "Ver Tratamientos",
+    cta2: "Agendar Hora",
+    href1: "#servicios",
+    href2: "#contacto",
+    bg: "linear-gradient(135deg, #0f2547 0%, #1a3a6e 60%, #0e4f50 100%)",
+  },
+  {
+    tag: "Armonización Facial",
+    title: "Estética Facial Natural Sin Cirugía",
+    sub: "Bótox, ácido hialurónico, rinomodelación y más — tratamientos no invasivos que realzan tu belleza natural.",
+    cta1: "Conocer Servicios",
+    cta2: "Consulta Gratis",
+    href1: "#servicios",
+    href2: "#contacto",
+    bg: "linear-gradient(135deg, #0d3b4f 0%, #0f5460 60%, #16878c 100%)",
+  },
+  {
+    tag: "Redermalización · Masoterapia",
+    title: "Tratamientos Innovadores Para Tu Bienestar Total",
+    sub: "Tecnología de vanguardia aplicada con un enfoque clínico cálido y personalizado, desde tu primera evaluación.",
+    cta1: "Ver Todo",
+    cta2: "Contáctanos",
+    href1: "#servicios",
+    href2: "#contacto",
+    bg: "linear-gradient(135deg, #1a1a2e 0%, #162040 60%, #0e4f50 100%)",
+  },
+];

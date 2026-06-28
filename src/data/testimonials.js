@@ -1,0 +1,6 @@
+export const TESTIMONIALS = [
+  { name: "Valentina R.", loc: "Santiago", treatment: "Ortodoncia Especializada", text: "Después de años con brackets convencionales sin resultados satisfactorios, la Dra. Paulina diseñó un plan completamente diferente. La diferencia en mi mordida y en la simetría de mi cara es notable.", rating: 5 },
+  { name: "Camila M.", loc: "Rancagua", treatment: "Redermalización de Ojeras", text: "A las dos semanas ya noté el cambio. Mis ojeras siempre me daban una apariencia cansada. El tratamiento fue rápido, sin dolor y los resultados han sido extraordinariamente duraderos.", rating: 5 },
+  { name: "Francisca L.", loc: "Santiago", treatment: "Ácido Hialurónico en Labios", text: "Tenía mucho miedo de quedar exagerada. La Dra. fue extremadamente conservadora y el resultado es completamente natural. Mucha gente me pregunta si bajé de peso — eso lo dice todo.", rating: 5 },
+  { name: "Carolina P.", loc: "Viña del Mar", treatment: "Bótox", text: "Llevaba años posponiendo el tratamiento. Desde la primera cita, la Dra. Paulina me dio confianza total. El resultado es una versión más descansada y fresca de mí misma.", rating: 5 },
+];
