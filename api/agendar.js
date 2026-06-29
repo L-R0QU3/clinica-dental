@@ -3,6 +3,7 @@ import { google } from 'googleapis';
 import emailjs from '@emailjs/browser';
 
 export default async function handler(req, res) {
+  // Solo aceptar solicitudes POST
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Método no permitido' });
   }
@@ -10,23 +11,39 @@ export default async function handler(req, res) {
   try {
     const { nombre, email, telefono, fecha, hora, especialidad, mensaje } = req.body;
 
+    // Validar campos obligatorios
     if (!nombre || !email || !fecha || !hora) {
       return res.status(400).json({ error: 'Faltan datos obligatorios' });
     }
 
-    // ─── LIMPIAR CLAVE PRIVADA ──────────────────────────────────────────
-    // Eliminar comillas dobles si existen, y asegurar saltos de línea correctos
-    let privateKey = process.env.GOOGLE_PRIVATE_KEY || '';
-    // Reemplazar comillas dobles al inicio y final si existen
-    privateKey = privateKey.replace(/^"|"$/g, '');
-    // Reemplazar \n literales con saltos de línea reales
-    privateKey = privateKey.replace(/\\n/g, '\n');
-    // Eliminar espacios en blanco alrededor
-    privateKey = privateKey.trim();
+    // ─── 1. LIMPIAR Y OBTENER CLAVE PRIVADA ──────────────────────────────
+    let privateKey = '';
 
+    // Opción A: Usar clave en base64 (más robusto para Vercel)
+    if (process.env.GOOGLE_PRIVATE_KEY_BASE64) {
+      privateKey = Buffer.from(process.env.GOOGLE_PRIVATE_KEY_BASE64, 'base64').toString('utf-8');
+      console.log('✅ Clave decodificada desde BASE64');
+    } 
+    // Opción B: Usar clave estándar (con \n)
+    else if (process.env.GOOGLE_PRIVATE_KEY) {
+      privateKey = process.env.GOOGLE_PRIVATE_KEY;
+      // Limpiar comillas dobles si existen
+      privateKey = privateKey.replace(/^"|"$/g, '');
+      // Reemplazar \n literales con saltos de línea reales
+      privateKey = privateKey.replace(/\\n/g, '\n');
+      privateKey = privateKey.trim();
+      console.log('✅ Clave limpiada desde GOOGLE_PRIVATE_KEY');
+    } else {
+      console.error('❌ No se encontró GOOGLE_PRIVATE_KEY ni GOOGLE_PRIVATE_KEY_BASE64');
+      return res.status(500).json({ error: 'Error de configuración del servidor' });
+    }
+
+    // Log para depuración (solo primeros 50 caracteres)
     console.log('🔑 Clave privada (primeros 50 chars):', privateKey.substring(0, 50) + '...');
+    console.log('📧 GOOGLE_CLIENT_EMAIL:', process.env.GOOGLE_CLIENT_EMAIL);
+    console.log('📅 GOOGLE_CALENDAR_ID:', process.env.GOOGLE_CALENDAR_ID);
 
-    // ─── AUTENTICAR CON GOOGLE CALENDAR ──────────────────────────────
+    // ─── 2. AUTENTICAR CON GOOGLE CALENDAR ──────────────────────────────
     const auth = new google.auth.GoogleAuth({
       credentials: {
         client_email: process.env.GOOGLE_CLIENT_EMAIL,
@@ -37,9 +54,9 @@ export default async function handler(req, res) {
 
     const calendar = google.calendar({ version: 'v3', auth });
 
-    // ─── CREAR EVENTO ──────────────────────────────────────────────────
-    const startDateTime = `${fecha}T${hora}:00-04:00`;
-    const endDateTime = new Date(new Date(startDateTime).getTime() + 60 * 60 * 1000).toISOString();
+    // ─── 3. CREAR EL EVENTO EN GOOGLE CALENDAR ──────────────────────────
+    const startDateTime = `${fecha}T${hora}:00-04:00`; // Zona horaria Chile
+    const endDateTime = new Date(new Date(startDateTime).getTime() + 60 * 60 * 1000).toISOString(); // 1 hora después
 
     const event = {
       summary: `Consulta con ${nombre}`,
@@ -74,7 +91,9 @@ export default async function handler(req, res) {
       sendUpdates: 'all',
     });
 
-    // ─── ENVIAR CORREO DE CONFIRMACIÓN ──────────────────────────────────
+    console.log('✅ Evento creado en Google Calendar:', response.data.id);
+
+    // ─── 4. ENVIAR CORREO DE CONFIRMACIÓN CON EMAILJS ──────────────────
     const fechaFormateada = new Date(startDateTime).toLocaleString('es-CL', {
       weekday: 'long',
       day: 'numeric',
@@ -97,13 +116,16 @@ export default async function handler(req, res) {
       process.env.EMAILJS_PUBLIC_KEY
     );
 
+    console.log('✅ Correo de confirmación enviado a:', email);
+
+    // ─── 5. RESPONDER AL FRONTEND ───────────────────────────────────────
     res.status(200).json({
       success: true,
       eventId: response.data.id,
       message: '¡Cita agendada exitosamente!',
     });
   } catch (error) {
-    console.error('Error en el backend:', error);
+    console.error('❌ Error en el backend:', error);
     res.status(500).json({ error: 'Error al agendar la cita. Intenta más tarde.' });
   }
 }
