@@ -1,6 +1,6 @@
 // api/agendar.js
 import { google } from 'googleapis';
-import emailjs from '@emailjs/browser';
+import emailjs from '@emailjs/nodejs';  // 👈 Cambio importante
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -46,10 +46,8 @@ export default async function handler(req, res) {
 
     const calendar = google.calendar({ version: 'v3', auth });
 
-    // ─── 3. CREAR EVENTO (SIN ATTENDEES) ──────────────────────────────────
-    // Fecha y hora correctas en zona horaria Chile
+    // ─── 3. CREAR EVENTO ──────────────────────────────────────────────────
     const startDateTime = `${fecha}T${hora}:00-04:00`;
-    // Calcular endDateTime sumando 1 hora a startDateTime (en zona horaria local)
     const startDate = new Date(startDateTime);
     const endDate = new Date(startDate.getTime() + 60 * 60 * 1000);
     const endDateTime = endDate.toISOString();
@@ -71,7 +69,6 @@ export default async function handler(req, res) {
         dateTime: endDateTime,
         timeZone: 'America/Santiago',
       },
-      // ⚠️ QUITAMOS 'attendees' para evitar el error de delegación
       reminders: {
         useDefault: false,
         overrides: [
@@ -84,12 +81,12 @@ export default async function handler(req, res) {
     const response = await calendar.events.insert({
       calendarId: process.env.GOOGLE_CALENDAR_ID || 'primary',
       resource: event,
-      sendUpdates: 'none', // No enviamos invitaciones por correo (ya lo hacemos con EmailJS)
+      sendUpdates: 'none',
     });
 
     console.log('✅ Evento creado en Google Calendar:', response.data.id);
 
-    // ─── 4. ENVIAR CORREO DE CONFIRMACIÓN CON EMAILJS ──────────────────
+    // ─── 4. ENVIAR CORREO DE CONFIRMACIÓN CON EMAILJS (Node.js) ──────────
     const fechaFormateada = startDate.toLocaleString('es-CL', {
       weekday: 'long',
       day: 'numeric',
@@ -99,6 +96,7 @@ export default async function handler(req, res) {
       minute: '2-digit',
     });
 
+    // Usar @emailjs/nodejs
     await emailjs.send(
       process.env.EMAILJS_SERVICE_ID,
       process.env.EMAILJS_TEMPLATE_AGENDAR,
@@ -109,7 +107,10 @@ export default async function handler(req, res) {
         especialidad: especialidad || 'Consulta general',
         mensaje: mensaje || '',
       },
-      process.env.EMAILJS_PUBLIC_KEY
+      {
+        publicKey: process.env.EMAILJS_PUBLIC_KEY,
+        // privateKey: process.env.EMAILJS_PRIVATE_KEY, // Solo si usas autenticación con clave privada
+      }
     );
 
     console.log('✅ Correo de confirmación enviado a:', email);
