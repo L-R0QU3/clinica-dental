@@ -1,6 +1,6 @@
 // api/agendar.js
 import { google } from 'googleapis';
-import emailjs from '@emailjs/nodejs';  // 👈 Cambio importante
+import emailjs from '@emailjs/nodejs'; // 👈 Cambio aquí
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -46,7 +46,7 @@ export default async function handler(req, res) {
 
     const calendar = google.calendar({ version: 'v3', auth });
 
-    // ─── 3. CREAR EVENTO ──────────────────────────────────────────────────
+    // ─── 3. CREAR EVENTO (SIN ATTENDEES) ──────────────────────────────────
     const startDateTime = `${fecha}T${hora}:00-04:00`;
     const startDate = new Date(startDateTime);
     const endDate = new Date(startDate.getTime() + 60 * 60 * 1000);
@@ -86,7 +86,7 @@ export default async function handler(req, res) {
 
     console.log('✅ Evento creado en Google Calendar:', response.data.id);
 
-    // ─── 4. ENVIAR CORREO DE CONFIRMACIÓN CON EMAILJS (Node.js) ──────────
+    // ─── 4. ENVIAR CORREO DE CONFIRMACIÓN CON EMAILJS (versión Node.js) ──
     const fechaFormateada = startDate.toLocaleString('es-CL', {
       weekday: 'long',
       day: 'numeric',
@@ -96,7 +96,11 @@ export default async function handler(req, res) {
       minute: '2-digit',
     });
 
-    // Usar @emailjs/nodejs
+    // Configurar el cliente de EmailJS para Node.js
+    emailjs.init({
+      publicKey: process.env.EMAILJS_PUBLIC_KEY,
+    });
+
     await emailjs.send(
       process.env.EMAILJS_SERVICE_ID,
       process.env.EMAILJS_TEMPLATE_AGENDAR,
@@ -106,10 +110,6 @@ export default async function handler(req, res) {
         fecha: fechaFormateada,
         especialidad: especialidad || 'Consulta general',
         mensaje: mensaje || '',
-      },
-      {
-        publicKey: process.env.EMAILJS_PUBLIC_KEY,
-        // privateKey: process.env.EMAILJS_PRIVATE_KEY, // Solo si usas autenticación con clave privada
       }
     );
 
