@@ -3,7 +3,6 @@ import { google } from 'googleapis';
 import emailjs from '@emailjs/browser';
 
 export default async function handler(req, res) {
-  // Solo aceptar solicitudes POST
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Método no permitido' });
   }
@@ -11,25 +10,19 @@ export default async function handler(req, res) {
   try {
     const { nombre, email, telefono, fecha, hora, especialidad, mensaje } = req.body;
 
-    // Validar campos obligatorios
     if (!nombre || !email || !fecha || !hora) {
       return res.status(400).json({ error: 'Faltan datos obligatorios' });
     }
 
-    // ─── 1. LIMPIAR Y OBTENER CLAVE PRIVADA ──────────────────────────────
+    // ─── 1. LIMPIAR CLAVE PRIVADA ──────────────────────────────────────────
     let privateKey = '';
 
-    // Opción A: Usar clave en base64 (más robusto para Vercel)
     if (process.env.GOOGLE_PRIVATE_KEY_BASE64) {
       privateKey = Buffer.from(process.env.GOOGLE_PRIVATE_KEY_BASE64, 'base64').toString('utf-8');
       console.log('✅ Clave decodificada desde BASE64');
-    } 
-    // Opción B: Usar clave estándar (con \n)
-    else if (process.env.GOOGLE_PRIVATE_KEY) {
+    } else if (process.env.GOOGLE_PRIVATE_KEY) {
       privateKey = process.env.GOOGLE_PRIVATE_KEY;
-      // Limpiar comillas dobles si existen
       privateKey = privateKey.replace(/^"|"$/g, '');
-      // Reemplazar \n literales con saltos de línea reales
       privateKey = privateKey.replace(/\\n/g, '\n');
       privateKey = privateKey.trim();
       console.log('✅ Clave limpiada desde GOOGLE_PRIVATE_KEY');
@@ -38,7 +31,6 @@ export default async function handler(req, res) {
       return res.status(500).json({ error: 'Error de configuración del servidor' });
     }
 
-    // Log para depuración (solo primeros 50 caracteres)
     console.log('🔑 Clave privada (primeros 50 chars):', privateKey.substring(0, 50) + '...');
     console.log('📧 GOOGLE_CLIENT_EMAIL:', process.env.GOOGLE_CLIENT_EMAIL);
     console.log('📅 GOOGLE_CALENDAR_ID:', process.env.GOOGLE_CALENDAR_ID);
@@ -54,9 +46,13 @@ export default async function handler(req, res) {
 
     const calendar = google.calendar({ version: 'v3', auth });
 
-    // ─── 3. CREAR EL EVENTO EN GOOGLE CALENDAR ──────────────────────────
-    const startDateTime = `${fecha}T${hora}:00-04:00`; // Zona horaria Chile
-    const endDateTime = new Date(new Date(startDateTime).getTime() + 60 * 60 * 1000).toISOString(); // 1 hora después
+    // ─── 3. CREAR EVENTO (SIN ATTENDEES) ──────────────────────────────────
+    // Fecha y hora correctas en zona horaria Chile
+    const startDateTime = `${fecha}T${hora}:00-04:00`;
+    // Calcular endDateTime sumando 1 hora a startDateTime (en zona horaria local)
+    const startDate = new Date(startDateTime);
+    const endDate = new Date(startDate.getTime() + 60 * 60 * 1000);
+    const endDateTime = endDate.toISOString();
 
     const event = {
       summary: `Consulta con ${nombre}`,
@@ -75,7 +71,7 @@ export default async function handler(req, res) {
         dateTime: endDateTime,
         timeZone: 'America/Santiago',
       },
-      attendees: [{ email }],
+      // ⚠️ QUITAMOS 'attendees' para evitar el error de delegación
       reminders: {
         useDefault: false,
         overrides: [
@@ -88,13 +84,13 @@ export default async function handler(req, res) {
     const response = await calendar.events.insert({
       calendarId: process.env.GOOGLE_CALENDAR_ID || 'primary',
       resource: event,
-      sendUpdates: 'all',
+      sendUpdates: 'none', // No enviamos invitaciones por correo (ya lo hacemos con EmailJS)
     });
 
     console.log('✅ Evento creado en Google Calendar:', response.data.id);
 
     // ─── 4. ENVIAR CORREO DE CONFIRMACIÓN CON EMAILJS ──────────────────
-    const fechaFormateada = new Date(startDateTime).toLocaleString('es-CL', {
+    const fechaFormateada = startDate.toLocaleString('es-CL', {
       weekday: 'long',
       day: 'numeric',
       month: 'long',
